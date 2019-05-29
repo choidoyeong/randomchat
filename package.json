@@ -15,5 +15,10 @@
   "bugs": {
     "url": "https://github.com/choidoyeong/randomchat/issues"
   },
-  "homepage": "https://github.com/choidoyeong/randomchat#readme"
+  "homepage": "https://github.com/choidoyeong/randomchat#readme",
+  "dependencies": {
+    "express": "^4.17.1",
+    "mongoose": "^5.5.11",
+    "socket.io": "^2.2.0"
+  }
 }
