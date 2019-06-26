@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>랜덤채팅</title>
+ 
+    <!-- 부트스트랩 사용-->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/css/bootstrap.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/js/bootstrap.min.js"></script>
+ 
+    <!-- socket.io.js파일-->
+    <script src="/socket.io/socket.io.js"></script>
+ 
+    <style>
+        body{
+            padding-top: 50px;
+        }
+        
+        .chatDisabled{
+            display:none;
+        }
+        .chatabled{
+            display: block;
+        }
+    </style>
+    
+    <script>
+        window.onload = function(){
+            var nickName = ''
+            var roomName = ''
+            var handle = null
+            var socket = io.connect()
+
+            $('#nicknameBtn').on("click", () => {
+              var nicknameValue = $('input[name="nickname"]').val();
+              nickName = nicknameValue
+              socket.emit('nickNameCheck', {name: nicknameValue})
+            })
+
+            socket.on('nullError', (result) => {
+              alert(result)
+            })
+
+            socket.on('sameNameError', (result) => {
+              alert(result)
+            })
+
+            socket.on('nickNameCheckComplete', () => {
+              $('#chatBox').removeClass('chatDisabled').addClass('chatabled')
+              $('#nickNameForm').css('display', 'none')
+              $('#sendMessage').hide()
+              $('#closing').hide()
+              $('#randomChatFindBtn').show()
+            })
+
+            $('#randomChatFindBtn').on('click', () => {
+                $('#chat').html('');
+                socket.emit('randomChatFindClick', {name:nickName})
+            })
+
+            socket.on('randomChatFindClickComplete', () => {
+                $('#chat').html('').append('<li>대화 상대를 찾고 있습니다.... </li>')
+                startFinding()
+            })
+
+            socket.on('randomChatFindingComplete', (data) => {
+                stopFinding()
+                $('#chat').html('').append('<li><p>대화방에 입장했습니다!!</p><hr></li>')
+                $('#sendMessage').show(); $('#closing').show()
+                $('#randomChatFindBtn').hide()
+                roomName = data
+            })
+
+            startFinding = () => {
+                if(handle == null) {
+                    handle = setInterval(() => {
+                        socket.emit('randomChatFinding', {name: nickName})
+                    }, 500)
+                }
+            }
+
+            stopFinding = () => {
+                clearInterval(handle)
+                handle = null
+            }
+
+            $('#sendMessage').on('click', () => {
+                let content = $('#content').val()
+                if(!content) {
+                    alert('대화내용을 입력해주세요')
+                    return ;
+                }
+
+                let str = ''
+                str += '<li>'
+                str += '<strong>'+nickName+'</strong>'
+                str += '<p>' + content + '</p>'
+                str += '<hr>'
+                str += '</li>'
+
+                socket.emit('message', {roomName: roomName, data: str})
+                $('#content').val('')
+                $('#chat').scrollTop($('#chat')[0].scrollHeight)
+            })
+
+            socket.on('message', (data) => {
+                $('#chat').append(data)
+            })
+
+            $('#closing').on('click', () => {
+                socket.emit('chatClosingBtn', {roomName:roomName})
+            })
+
+            socket.on('chatEnd', (data) => {
+                $('#chat').append('<li><p>대화가 종료되었습니다.</p><hr></li>')
+                $('#chat').scrollTop($('#chat')[0].scrollHeight)
+                $('#sendMessage').hide()
+                $('#closing').hide()
+                $('#randomChatFindBtn').show()
+                socket.emit('chatClosing', {roomName: roomName})
+            })
+
+            socket.on('discWhileChat', () => {
+                socket.emit('chatClosingBtn', {roomName: roomName})
+            })
+
+            socket.on('clientsCount', (data) => {
+                $('.clientsCount').html(data)
+            })
+        }
+    </script>
+</head>
+<body>
+    <div class="container">
+        <div class="jumbotron">
+            <h1>랜덤채팅</h1>
+            <p>
+                랜챗 싸이트<br>
+                닉네임 입력하고 들어가여<br>
+                그럼 채팅 가능 ㅇㅋ?
+            </p>
+        </div>
+    </div>
+    <div class="container" style="margin-top: 20px;" id="nickNameForm">
+        <div class="form-group form-inline">
+            <input type="text" name="nickname" class="form-control" maxlength="100" id="nickname" placeholder="닉네임을 입력하세요..">
+            <button class="btn btn-primary" id="nicknameBtn">확인</button>
+        </div>
+    </div>
+    <div class="container chatDisabled" id="chatBox">
+        <div class="panel panel-primary">
+            <div class="panel-heading">
+                <h1 class="panel-title">채팅창<span class="pull-right">접속자 : <span class="clientsCount"></span>명</span></h1>
+            </div>
+            <div class="panel-body">
+                <ul class="chat list-unstyled" id="chat" style="height: 500px; overflow: auto;">
+                </ul>
+            </div>
+            <div class="panel-footer">
+                <div class="row">
+                    <div class="col-xs-9">
+                        <input type="text" class="form-control" id="content" name="content" placeholder="대화내용을 입력하세요.." maxlength="3000">
+                    </div>
+                    <div class="col-xs-3">
+                        <button class="btn btn-primary" id="sendMessage">보내기</button>
+                        <button class="btn btn-danger" id="closing">나가기</button>
+                        <button class="btn btn-warning" id="randomChatFindBtn">랜덤채팅시작</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
